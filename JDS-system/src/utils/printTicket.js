@@ -53,7 +53,7 @@ const getTicketHTML = (logoBase64, saleData, customerInfo, copyLabel) => {
   return `
     <html>
       <head>
-        <title>Ticket Cazadores Sport Bar</title>
+        <title>Ticket Jardin de Sabores</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           @page { size: 80mm auto; margin: 0mm; }
@@ -92,8 +92,8 @@ const getTicketHTML = (logoBase64, saleData, customerInfo, copyLabel) => {
       <body>
         <div class="header center">
           ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" />` : ''}
-          <div class="title">CAZADORES SPORT BAR</div>
-          <div class="address-shop">Rosario Sabinal 60, Terán<br>29057 Tuxtla Gutiérrez, Chis.</div>
+          <div class="title">Jardin de Sabores</div>
+          <div class="address-shop">Av. 4a. Nte. Pte. 242<br>29066 Tuxtla Gutiérrez, Chis.</div>
         </div>
         
         <div class="divider-double"></div>
@@ -252,7 +252,7 @@ export const printCashDrawerClosing = async (totalsData, username = "CAJERO") =>
       <body>
         <div class="center">
           ${logoBase64 ? `<img src="${logoBase64}" class="logo-img" />` : ''}
-          <h2 style="margin: 0;">CAZADORES SPORT BAR</h2>
+          <h2 style="margin: 0;">JARDIN DE SABORES</h2>
           <h3 style="margin: 5px 0;">*** CORTE DE CAJA ***</h3>
           <p style="font-size: 10px;">FECHA: ${new Date().toLocaleString('es-MX')}</p>
           <p style="font-size: 10px;">REALIZADO POR: ${username}</p>

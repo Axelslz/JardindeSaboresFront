@@ -1,16 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Dialog, DialogTitle, DialogContent, Table, TableBody, TableCell, 
-  TableHead, TableRow, Button, IconButton, Box, Typography, DialogActions,
-  TextField, TableContainer, Chip 
+  Table, TableBody, TableCell, TableHead, TableRow, Button, IconButton, 
+  Box, Typography, DialogActions, TextField, TableContainer, Chip, 
+  Paper, Dialog, DialogTitle, DialogContent, useTheme 
 } from '@mui/material';
 import { Visibility, Print } from '@mui/icons-material'; 
 import { generateTicketHTML } from '../utils/printTicket'; 
+import { getSalesHistoryService } from '../services/saleService';
 
-export default function SalesHistory({ open, onClose, sales }) {
+export default function SalesHistory() {
+  const theme = useTheme();
+  const [sales, setSales] = useState([]); 
+  const [loading, setLoading] = useState(false); 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [ticketHTML, setTicketHTML] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        setLoading(true);
+        const data = await getSalesHistoryService();
+        setSales(data);
+      } catch (error) {
+        console.error("Error al cargar el historial:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSales();
+  }, []);
 
   const handleOpenPreview = async (sale, splitIndex = null) => {
     setIsPreviewOpen(true);
@@ -97,147 +116,144 @@ export default function SalesHistory({ open, onClose, sales }) {
 
   const filteredSales = sales?.filter((sale) => {
     const folio = sale.ticketNumber ? sale.ticketNumber.toString().toLowerCase() : `f-${sale.id}`.toLowerCase();
-    const customerName = (sale.customerName || 'PÚBLICO EN GENERAL').toLowerCase();
+    const tableName = (sale.mesa || sale.tableName || 'Mostrador').toLowerCase();
     const searchLower = searchTerm.toLowerCase();
     
-    return folio.includes(searchLower) || customerName.includes(searchLower);
+    return folio.includes(searchLower) || tableName.includes(searchLower);
   }) || [];
 
   return (
-    <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Historial de Ventas</DialogTitle>
-        
-        <Box px={3} pb={2}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Buscar por folio o cliente..."
-            variant="outlined"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </Box>
+    <Box sx={{ p: 4, height: '100%' }}>
+      <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 3, color: 'text.primary' }}>
+        Historial de Ventas
+      </Typography>
 
-        <DialogContent dividers>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Folio</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Mesa / Cliente</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Fecha</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Artículos</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(!sales || sales.length === 0) ? (
-                  <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3 }}>Cargando o sin ventas...</TableCell></TableRow>
-                ) : filteredSales.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3 }}>No se encontraron coincidencias</TableCell></TableRow>
-                ) : (
-                  filteredSales.map((sale) => {
-                    const itemsList = sale.SaleItems || sale.items || sale.cart || [];
-                    const folioAMostrar = sale.ticketNumber ? sale.ticketNumber : `F-${sale.id}`;
-                    const ticketNumStr = sale.ticketNumber ? sale.ticketNumber.toString() : '';
-                    
-                    const isSplit = sale.splitWays > 1 || ticketNumStr === 'DIVIDIDO' || ticketNumStr.startsWith('DIV-');
-                    
-                    let ways = 1;
-                    if (sale.splitWays > 1) {
-                      ways = sale.splitWays;
-                    } else if (ticketNumStr === 'DIVIDIDO') {
-                      ways = 2;
-                    } else if (ticketNumStr.startsWith('DIV-')) {
-                      ways = parseInt(ticketNumStr.split('-')[1]) || 2;
-                    }
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+        <TextField
+          fullWidth
+          size="small"
+          label="Buscar por folio o mesa..."
+          variant="outlined"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </Paper>
 
-                    return (
-                      <TableRow key={sale.id} hover>
-                        <TableCell>#{folioAMostrar}</TableCell>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                              {sale.customerName || 'PÚBLICO EN GENERAL'}
-                            </Typography>
-                            {isSplit && (
-                              <Chip 
-                                label="Dividida" 
+      <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+        <Table size="small">
+          <TableHead sx={{ backgroundColor: theme.palette.action.hover }}>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>Folio</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>Mesa</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>Fecha</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>Artículos</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', color: 'text.primary' }}>Total</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>Cargando ventas...</TableCell></TableRow>
+            ) : (!sales || sales.length === 0) ? (
+              <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>No hay ventas registradas actualmente.</TableCell></TableRow>
+            ) : filteredSales.length === 0 ? (
+              <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>No se encontraron coincidencias</TableCell></TableRow>
+            ) : (
+              filteredSales.map((sale) => {
+                const itemsList = sale.SaleItems || sale.items || sale.cart || [];
+                const folioAMostrar = sale.ticketNumber ? sale.ticketNumber : `F-${sale.id}`;
+                const ticketNumStr = sale.ticketNumber ? sale.ticketNumber.toString() : '';
+                
+                const isSplit = sale.splitWays > 1 || ticketNumStr === 'DIVIDIDO' || ticketNumStr.startsWith('DIV-');
+                
+                let ways = 1;
+                if (sale.splitWays > 1) {
+                  ways = sale.splitWays;
+                } else if (ticketNumStr === 'DIVIDIDO') {
+                  ways = 2;
+                } else if (ticketNumStr.startsWith('DIV-')) {
+                  ways = parseInt(ticketNumStr.split('-')[1]) || 2;
+                }
+
+                return (
+                  <TableRow key={sale.id} hover>
+                    <TableCell sx={{ color: 'text.primary' }}>#{folioAMostrar}</TableCell>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.primary' }}>
+                          {sale.mesa || sale.tableName || 'Mostrador'}
+                        </Typography>
+                        {isSplit && (
+                          <Chip 
+                            label="Dividida" 
+                            size="small" 
+                            color="error" 
+                            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
+                          />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.primary' }}>
+                      {new Date(sale.createdAt || sale.date).toLocaleString('es-MX')}
+                    </TableCell>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                        <Typography variant="body2" sx={{ mr: 0.5, color: 'text.primary' }}>
+                          {itemsList.length} art. {isSplit && `(en ${ways} partes)`}
+                        </Typography>
+                        {itemsList.length > 0 && (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            {!isSplit ? (
+                              <IconButton 
                                 size="small" 
-                                color="error" 
-                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
-                              />
+                                color="primary" 
+                                onClick={() => handleOpenPreview(sale)}
+                                title="Ver ticket completo"
+                                sx={{ 
+                                  p: '2px 5px', 
+                                  border: `1px solid ${theme.palette.primary.main}`, 
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                <Visibility sx={{ fontSize: '0.85rem' }} />
+                              </IconButton>
+                            ) : (
+                              Array.from({ length: ways }).map((_, idx) => (
+                                <IconButton 
+                                  key={idx}
+                                  size="small" 
+                                  color="primary" 
+                                  onClick={() => handleOpenPreview(sale, idx + 1)}
+                                  title={`Ver Ticket Parte ${idx + 1}`}
+                                  sx={{ 
+                                    p: '2px 5px', 
+                                    border: `1px solid ${theme.palette.primary.main}`, 
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '2px'
+                                  }}
+                                >
+                                  <Visibility sx={{ fontSize: '0.85rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
+                                    {idx + 1}
+                                  </Typography>
+                                </IconButton>
+                              ))
                             )}
                           </Box>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(sale.createdAt || sale.date).toLocaleString('es-MX')}
-                        </TableCell>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                            <Typography variant="body2" sx={{ mr: 0.5 }}>
-                              {itemsList.length} art. {isSplit && `(en ${ways} partes)`}
-                            </Typography>
-                            {itemsList.length > 0 && (
-                              <Box display="flex" alignItems="center" gap={0.5}>
-                                {!isSplit ? (
-                                  <IconButton 
-                                    size="small" 
-                                    color="primary" 
-                                    onClick={() => handleOpenPreview(sale)}
-                                    title="Ver ticket completo"
-                                    sx={{ 
-                                      p: '2px 5px', 
-                                      border: '1px solid #1976d2', 
-                                      borderRadius: '4px'
-                                    }}
-                                  >
-                                    <Visibility sx={{ fontSize: '0.85rem' }} />
-                                  </IconButton>
-                                ) : (
-                                  Array.from({ length: ways }).map((_, idx) => (
-                                    <IconButton 
-                                      key={idx}
-                                      size="small" 
-                                      color="primary" 
-                                      onClick={() => handleOpenPreview(sale, idx + 1)}
-                                      title={`Ver Ticket Parte ${idx + 1}`}
-                                      sx={{ 
-                                        p: '2px 5px', 
-                                        border: '1px solid #1976d2', 
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '2px'
-                                      }}
-                                    >
-                                      <Visibility sx={{ fontSize: '0.85rem' }} />
-                                      <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
-                                        {idx + 1}
-                                      </Typography>
-                                    </IconButton>
-                                  ))
-                                )}
-                              </Box>
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                          ${(parseFloat(sale.total) + (sale.tip ? parseFloat(sale.tip) : 0)).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <Box p={2}>
-          <Button onClick={onClose} fullWidth variant="outlined">Cerrar Historial</Button>
-        </Box>
-      </Dialog>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                      ${(parseFloat(sale.total) + (sale.tip ? parseFloat(sale.tip) : 0)).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       <Dialog 
         open={isPreviewOpen} 
@@ -245,14 +261,14 @@ export default function SalesHistory({ open, onClose, sales }) {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1, color: 'text.primary' }}>
           Reimpresión de Ticket
         </DialogTitle>
-        <DialogContent dividers sx={{ p: 0, height: '450px', backgroundColor: '#f5f5f5' }}>
+        <DialogContent dividers sx={{ p: 0, height: '450px', backgroundColor: theme.palette.background.default }}>
           {ticketHTML ? (
             <iframe
               srcDoc={ticketHTML}
-              style={{ width: '100%', height: '100%', border: 'none' }}
+              style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#fff' }}
               title="Vista previa del ticket"
             />
           ) : (
@@ -278,6 +294,6 @@ export default function SalesHistory({ open, onClose, sales }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 }

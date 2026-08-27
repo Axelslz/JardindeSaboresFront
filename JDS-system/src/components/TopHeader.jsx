@@ -20,7 +20,6 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        // px ajustado: Más padding a la izquierda en móviles (xs y sm) para dejar libre el espacio del botón hamburguesa
         px: { xs: 2, md: 4 }, 
         pl: { xs: 8, md: 4 }, 
         backgroundImage: `url(${bgImage})`,
@@ -30,7 +29,6 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
         overflow: 'hidden'
       }}
     >
-      {/* Capa oscura semitransparente */}
       <Box 
         sx={{
           position: 'absolute',
@@ -40,14 +38,12 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
         }}
       />
 
-      {/* Título y Subtítulo (Izquierda) */}
       <Box sx={{ position: 'relative', zIndex: 2 }}>
         <Typography 
           variant="h5" 
           fontWeight="bold" 
           sx={{ 
             mb: 0, 
-            // Tamaños de fuente dinámicos
             fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
             lineHeight: 1.2
           }}
@@ -58,7 +54,6 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
           variant="body2" 
           sx={{ 
             color: '#e0e0e0',
-            // Subtítulo más pequeño en móviles
             fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.875rem' }
           }}
         >
@@ -66,12 +61,9 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
         </Typography>
       </Box>
 
-      {/* Fecha, Hora y Usuario (Derecha) */}
       <Box sx={{ position: 'relative', zIndex: 2, display: 'flex', gap: { xs: 1, md: 2 }, alignItems: 'center' }}>
-        
-        {/* Píldora de Fecha y Hora (OCULTA EN MÓVILES) */}
         <Box sx={{ 
-          display: { xs: 'none', md: 'flex' }, // Solo se muestra en pantallas medianas o grandes
+          display: { xs: 'none', md: 'flex' }, 
           alignItems: 'center', gap: 1, 
           backgroundColor: 'rgba(255, 255, 255, 0.15)', 
           backdropFilter: 'blur(10px)',
@@ -90,11 +82,9 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
           </Box>
         </Box>
 
-        {/* Píldora de Usuario */}
         <Box sx={{ 
           display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, 
           backgroundColor: 'rgba(0, 0, 0, 0.6)', 
-          // Padding más compacto en móviles
           padding: { xs: '4px 8px 4px 4px', sm: '4px 12px 4px 4px' }, 
           borderRadius: '30px',
           border: '1px solid rgba(255, 255, 255, 0.2)'
@@ -116,7 +106,6 @@ const TopHeader = ({ title, subtitle, bgImage = defaultBgImage }) => {
             <Typography variant="body2" fontWeight="bold" lineHeight={1.2} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               {user?.username || 'Administrador'}
             </Typography>
-            {/* Ocultamos el rol (Encargado/Admin) en pantallas extra pequeñas para no estirar la píldora */}
             <Typography variant="caption" color="gray" lineHeight={1} sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.65rem' }}>
               {user?.role || 'Encargado'}
             </Typography>

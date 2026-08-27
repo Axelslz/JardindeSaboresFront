@@ -1,352 +1,299 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Container, Grid, Paper, Typography, Box, 
-  Card, CardContent, Divider, useTheme, CircularProgress, Chip, Button,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, 
-  Snackbar, Alert, MenuItem, Select, FormControl, InputLabel 
+  Box, Typography, Grid, Card, CardContent, Avatar, 
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Select, MenuItem, FormControl, Button, Chip
 } from '@mui/material';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  PieChart, Pie, Cell 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList
 } from 'recharts';
 import { 
-  AttachMoney, TrendingUp, CalendarMonth, 
-  DeleteForever, WarningAmberRounded, FilterAlt, LocalBar, Restaurant, WineBar,
-  Storefront, Inventory 
+  Person, ChildCare, LocalCafe, AttachMoney, 
+  ArrowUpward, CalendarToday, AccessTime, 
+  AddCircleOutline, Receipt, RestaurantMenu, 
+  BarChart as ChartIcon, People, Settings,
+  TableRestaurant, Groups
 } from '@mui/icons-material';
-import { useInventory } from '../context/InventoryContext';
-import { format, subDays, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { resetHistoryService } from '../services/saleService'; 
+const kpiData = [
+  { id: 1, title: 'Paquetes Adulto', value: '38', subtitle: 'Órdenes hoy', trend: '+ 12% vs ayer', icon: <Person />, color: '#4CAF50', bg: '#E8F5E9' },
+  { id: 2, title: 'Paquetes Niño', value: '15', subtitle: 'Órdenes hoy', trend: '+ 8% vs ayer', icon: <ChildCare />, color: '#FF9800', bg: '#FFF3E0' },
+  { id: 3, title: 'Desayunos a la Carta', value: '22', subtitle: 'Órdenes hoy', trend: '+ 15% vs ayer', icon: <LocalCafe />, color: '#2196F3', bg: '#E3F2FD' },
+  { id: 4, title: 'Ventas del Día', value: '$18,450', subtitle: 'Ingresos totales', trend: '+ 18% vs ayer', icon: <AttachMoney />, color: '#9C27B0', bg: '#F3E5F5' },
+];
+
+const barData = [
+  { name: 'Paquetes Adulto', value: 10800, color: '#4CAF50' },
+  { name: 'Paquetes Niño', value: 2700, color: '#FF9800' },
+  { name: 'A la Carta', value: 4950, color: '#2196F3' },
+];
+
+const topProducts = [
+  { id: 1, name: 'Buffet Adulto', orders: 38, image: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?q=80&w=100&auto=format&fit=crop' },
+  { id: 2, name: 'Buffet Niño', orders: 15, image: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?q=80&w=100&auto=format&fit=crop' },
+  { id: 3, name: 'Chilaquiles', orders: 12, image: 'https://images.unsplash.com/photo-1626844131082-256783844137?q=80&w=100&auto=format&fit=crop' },
+  { id: 4, name: 'Hot Cakes', orders: 9, image: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?q=80&w=100&auto=format&fit=crop' },
+  { id: 5, name: 'Omelette', orders: 7, image: 'https://images.unsplash.com/photo-1510693206972-df098062cb71?q=80&w=100&auto=format&fit=crop' },
+];
+
+const recentOrders = [
+  { time: '08:45 AM', table: 'Mesa 5', type: 'Adulto', typeColor: '#4CAF50', desc: 'Buffet Adulto', total: '$280.00' },
+  { time: '08:40 AM', table: 'Mesa 8', type: 'Carta', typeColor: '#2196F3', desc: 'Chilaquiles + Café', total: '$180.00' },
+  { time: '08:36 AM', table: 'Mesa 2', type: 'Niño', typeColor: '#FF9800', desc: 'Buffet Niño', total: '$120.00' },
+  { time: '08:30 AM', table: 'Mesa 7', type: 'Adulto', typeColor: '#4CAF50', desc: 'Buffet Adulto', total: '$280.00' },
+  { time: '08:28 AM', table: 'Mesa 3', type: 'Carta', typeColor: '#2196F3', desc: 'Hot Cakes + Jugo', total: '$150.00' },
+];
+
+const quickActions = [
+  { label: 'Nueva Orden', icon: <AddCircleOutline fontSize="small" />, color: '#4CAF50', bg: '#E8F5E9' },
+  { label: 'Cobrar / Facturar', icon: <Receipt fontSize="small" />, color: '#FF9800', bg: '#FFF3E0' },
+  { label: 'Menú', icon: <RestaurantMenu fontSize="small" />, color: '#2196F3', bg: '#E3F2FD' },
+  { label: 'Reportes', icon: <ChartIcon fontSize="small" />, color: '#9C27B0', bg: '#F3E5F5' },
+  { label: 'Clientes', icon: <People fontSize="small" />, color: '#795548', bg: '#EFEBE9' },
+  { label: 'Configuración', icon: <Settings fontSize="small" />, color: '#607D8B', bg: '#ECEFF1' },
+];
 
 export default function Dashboard() {
-  const { sales, products, expenses, loadSales } = useInventory();
-  const theme = useTheme();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const [openDialog, setOpenDialog] = useState(false); 
-  const [loadingReset, setLoadingReset] = useState(false); 
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' }); 
-  const [timeFilter, setTimeFilter] = useState('day'); 
-
-  const handleOpenConfirm = () => setOpenDialog(true);
-  const handleCloseDialog = () => setOpenDialog(false);
-
-  const handleConfirmReset = async () => {
-    setLoadingReset(true);
-    try {
-        await resetHistoryService();
-        if(loadSales) await loadSales();
-        
-        setOpenDialog(false);
-        setSnackbar({ open: true, message: '✅ Sistema reiniciado (Corte de caja limpio).', severity: 'success' });
-        setTimeout(() => { window.location.reload(); }, 1500);
-    } catch (error) {
-        console.error(error);
-        setOpenDialog(false);
-        setSnackbar({ open: true, message: '❌ Error al reiniciar.', severity: 'error' });
-    } finally {
-        setLoadingReset(false);
-    }
-  };
-
-  const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
- 
-  const stats = useMemo(() => {
-    const today = new Date();
-    
-    let startDate, endDate;
-    if (timeFilter === 'day') {
-        startDate = startOfDay(today);
-        endDate = endOfDay(today);
-    } else if (timeFilter === 'week') {
-        startDate = startOfWeek(today, { weekStartsOn: 1 }); 
-        endDate = endOfWeek(today, { weekStartsOn: 1 });
-    } else if (timeFilter === 'month') {
-        startDate = startOfMonth(today);
-        endDate = endOfMonth(today);
-    } else { 
-        startDate = new Date(2000, 0, 1); 
-        endDate = new Date(2100, 0, 1);
-    }
-
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = subDays(today, 6 - i);
-      return { date: d, label: format(d, 'EEE dd', { locale: es }), ventas: 0, costo: 0, ganancia: 0 };
-    });
-
-    let totalVentasGlobal = 0;
-    let totalCostoMercancia = 0;
-    let ventasHoy = 0;
-
-    const ventasPorCategoriaBar = { cervezas: 0, licores: 0, botanas: 0, otros: 0 };
-    const currentProducts = Array.isArray(products) ? products : [];
-
-    let inversionTotalInventario = 0;
-    currentProducts.forEach(p => {
-        const stockActual = parseFloat(p.stock) || 0;
-        const costoInversion = parseFloat(p.cost) || 0;
-        if (stockActual > 0 && costoInversion > 0) {
-            inversionTotalInventario += (stockActual * costoInversion);
-        }
-    });
-
-    if (sales && Array.isArray(sales)) {
-        sales.forEach(sale => {
-            const dateString = sale.createdAt || sale.date || new Date();
-            const saleDate = new Date(dateString);
-            
-            const isWithinFilterRange = isWithinInterval(saleDate, { start: startDate, end: endDate });
-            const productsList = sale.SaleItems || sale.items || [];
-
-            let saleCost = 0;
-            let saleTotal = parseFloat(sale.total) || 0; 
-
-            productsList.forEach(item => {
-                const price = parseFloat(item.price) || 0;
-                const quantity = parseInt(item.quantity) || 1;
-                let unitCost = 0;
-                
-                const idToSearch = item.ProductId || item.id;
-                const productInDb = currentProducts.find(p => String(p.id) === String(idToSearch));
-
-                if (productInDb && productInDb.cost) unitCost = parseFloat(productInDb.cost);
-                else if (item.cost) unitCost = parseFloat(item.cost);
-                else unitCost = 0; 
-                
-                const itemTotalCost = unitCost * quantity;
-                const itemTotalRevenue = price * quantity;
-                saleCost += itemTotalCost;
-
-                if (isWithinFilterRange) {
-                  const catText = (productInDb?.category || 'otros').toLowerCase();
-                  if (catText.includes('cerveza') || catText.includes('beer')) ventasPorCategoriaBar.cervezas += itemTotalRevenue;
-                  else if (catText.includes('licor') || catText.includes('botella') || catText.includes('trago') || catText.includes('coctel') || catText.includes('vino')) ventasPorCategoriaBar.licores += itemTotalRevenue;
-                  else if (catText.includes('botana') || catText.includes('alimento') || catText.includes('comida') || catText.includes('snack')) ventasPorCategoriaBar.botanas += itemTotalRevenue;
-                  else ventasPorCategoriaBar.otros += itemTotalRevenue;
-                }
-            });
-
-            const saleProfit = saleTotal - saleCost;
-            
-            if (isWithinFilterRange) {
-                totalVentasGlobal += saleTotal;
-                totalCostoMercancia += saleCost;
-            }
-            if (isSameDay(saleDate, today)) ventasHoy += saleTotal;
-
-            const dayStat = last7Days.find(d => isSameDay(d.date, saleDate));
-            if (dayStat) {
-                dayStat.ventas += saleTotal;
-                dayStat.costo += saleCost;
-                dayStat.ganancia += saleProfit;
-            }
-        });
-    }
-
-    let gastosTienda = 0;
-    let gastosNomina = 0;
-
-    const currentExpenses = Array.isArray(expenses) ? expenses : [];
-    currentExpenses.forEach(exp => {
-        let expDate;
-        if (exp.date && exp.date.length === 10) {
-            expDate = new Date(`${exp.date}T12:00:00`);
-        } else {
-            expDate = new Date(exp.createdAt || new Date());
-        }
-
-        if (isWithinInterval(expDate, { start: startDate, end: endDate })) {
-            const amount = parseFloat(exp.amount) || 0;
-            
-            const tipoGasto = (exp.type || '').toLowerCase().trim();
-
-            if (tipoGasto === 'store' || tipoGasto === 'tienda') {
-                gastosTienda += amount;
-            } else if (tipoGasto === 'payroll' || tipoGasto === 'nomina' || tipoGasto === 'nómina') {
-                gastosNomina += amount;
-            }
-        }
-    });
-
-    const utilidadBruta = totalVentasGlobal - totalCostoMercancia;
-
-    const pieCategoriasData = [
-      { name: 'Cervezas', value: ventasPorCategoriaBar.cervezas, color: '#ffb300' }, 
-      { name: 'Licores / Copas', value: ventasPorCategoriaBar.licores, color: '#8e24aa' }, 
-      { name: 'Botanas / Cocina', value: ventasPorCategoriaBar.botanas, color: '#f4511e' }, 
-      { name: 'Otros', value: ventasPorCategoriaBar.otros, color: '#757575' }
-    ].filter(cat => cat.value > 0);
-
-    return {
-      chartData: last7Days,
-      totalVentas: totalVentasGlobal,
-      utilidadBruta: utilidadBruta,
-      gastosTienda, 
-      gastosNomina, 
-      ventasHoy,
-      inversionTotalInventario,
-      pieCategoriasData,
-      filterLabel: timeFilter === 'day' ? 'Hoy' : timeFilter === 'week' ? 'Esta Semana' : timeFilter === 'month' ? 'Este Mes' : 'Histórico General'
-    };
-  }, [sales, products, expenses, timeFilter]); 
+  const cardStyle = { borderRadius: '16px', border: '1px solid #E0E0E0', boxShadow: 'none' };
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#FAF7F2', minHeight: '100vh', fontFamily: '"Inter", "Roboto", sans-serif' }}>
       
-      <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} mb={3} gap={2}>
-         <Box>
-            <Typography variant="h4" fontWeight="bold" color="text.primary">Dashboard - Jardin de Sabores</Typography>
-            <Typography variant="body2" color="text.secondary">Rendimiento financiero y de inventarios: <b>{stats.filterLabel}</b></Typography>
-         </Box>
-         
-         <Box display="flex" gap={2} alignItems="center">
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel id="time-filter-label" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><FilterAlt fontSize="small" /> Filtro</InputLabel>
-                <Select labelId="time-filter-label" value={timeFilter} label="Filtro de Tiempo" onChange={(e) => setTimeFilter(e.target.value)} sx={{ bgcolor: 'background.paper' }}>
-                    <MenuItem value="day">Hoy</MenuItem>
-                    <MenuItem value="week">Esta Semana</MenuItem>
-                    <MenuItem value="month">Este Mes</MenuItem>
-                    <MenuItem value="all">Todo Histórico</MenuItem>
-                </Select>
-            </FormControl>
-
-            <Button variant="outlined" color="error" startIcon={<DeleteForever />} onClick={handleOpenConfirm} sx={{ fontWeight: 'bold', borderColor: '#ef5350', color: '#ef5350' }}>
-                Corte de Caja
-            </Button>
-         </Box>
+      <Box sx={{ 
+        position: 'relative', width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', mb: 3,
+        backgroundImage: 'url("https://images.unsplash.com/photo-1552566626-52f8b828add9?q=80&w=1200&auto=format&fit=crop")',
+        backgroundSize: 'cover', backgroundPosition: 'center'
+      }}>
+        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, bgcolor: 'rgba(0,0,0,0.5)' }} />
+        
+        <Box sx={{ position: 'relative', height: '100%', p: 3, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box>
+              <Typography variant="h5" fontWeight="bold" color="white" gutterBottom>¡Buenos días!</Typography>
+              <Typography variant="h4" fontWeight="800" color="white" mb={1}>Bienvenido a Jardín de Sabores</Typography>
+              <Box sx={{ display: 'flex', gap: 3, color: 'white', alignItems: 'center', mt: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <CalendarToday fontSize="small" />
+                  <Typography variant="body2">{format(currentTime, "dd 'de' MMMM, yyyy", { locale: es })}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccessTime fontSize="small" />
+                  <Typography variant="body2">{format(currentTime, "hh:mm a")}</Typography>
+                </Box>
+              </Box>
+            </Box>
+            <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
+              <Typography variant="h4" fontWeight="bold" color="white" sx={{ fontFamily: 'serif' }}>Jardín</Typography>
+              <Typography variant="subtitle2" color="white" sx={{ letterSpacing: 2 }}>de Sabores</Typography>
+            </Box>
+          </Box>
+        </Box>
       </Box>
 
+      {/* 2. KPIs TOP ROW */}
       <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="Venta Bruta" value={stats.totalVentas} icon={<AttachMoney fontSize="large" />} color={theme.palette.success.main} subtitle="Dinero ingresado (Ventas)" />
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="Utilidad Bruta" value={stats.utilidadBruta} icon={<TrendingUp fontSize="large" />} color={theme.palette.primary.main} subtitle="Ganancia real de lo vendido" />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ height: '100%', borderLeft: `5px solid ${theme.palette.error.main}` }}>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                <Box width="100%">
-                  <Typography color="text.secondary" gutterBottom variant="overline" fontWeight="bold">Gastos (Tienda + Nómina)</Typography>
-                  <Typography variant="h4" component="div" fontWeight="800" sx={{ color: 'text.primary', mb: 1 }}>
-                    ${(stats.gastosTienda + stats.gastosNomina).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                  <Divider sx={{ my: 1 }} />
-                  <Box display="flex" justifyContent="space-between" mt={1}>
-                    <Typography variant="body2" color="text.secondary">🏪 Tienda:</Typography>
-                    <Typography variant="body2" fontWeight="bold">${stats.gastosTienda.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-                  </Box>
-                  <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2" color="text.secondary">👥 Nómina:</Typography>
-                    <Typography variant="body2" fontWeight="bold">${stats.gastosNomina.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
+        {kpiData.map((kpi) => (
+          <Grid item xs={12} sm={6} md={3} key={kpi.id}>
+            <Card sx={cardStyle}>
+              <CardContent sx={{ p: 2.5, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                <Avatar sx={{ bgcolor: kpi.bg, color: kpi.color, width: 56, height: 56 }}>
+                  {kpi.icon}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" fontWeight="bold">{kpi.title}</Typography>
+                  <Typography variant="h4" fontWeight="900" sx={{ my: 0.5, color: '#333' }}>{kpi.value}</Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">{kpi.subtitle}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', color: kpi.color, gap: 0.5, mt: 0.5 }}>
+                    <ArrowUpward sx={{ fontSize: 14 }} />
+                    <Typography variant="caption" fontWeight="bold">{kpi.trend}</Typography>
                   </Box>
                 </Box>
-                <Box sx={{ bgcolor: `${theme.palette.error.main}20`, p: 1.5, borderRadius: '50%', color: theme.palette.error.main, display: 'flex', ml: 1 }}><Storefront fontSize="medium" /></Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* 3. MIDDLE ROW: CHARTS & TOP PRODUCTS */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} md={7}>
+          <Card sx={{ ...cardStyle, height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" color="#333">Ventas por Categoría (Hoy)</Typography>
+                <FormControl size="small">
+                  <Select value="hoy" sx={{ borderRadius: '8px', height: 32, fontSize: '0.875rem' }}>
+                    <MenuItem value="hoy">Hoy</MenuItem>
+                    <MenuItem value="semana">Semana</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box sx={{ height: 250, width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#666', fontSize: 12 }} />
+                    <YAxis tickFormatter={(val) => `$${val}`} axisLine={false} tickLine={false} tick={{ fill: '#666', fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: '#f5f5f5' }} formatter={(value) => `$${value}`} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                      {barData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                      <LabelList dataKey="value" position="top" formatter={(val) => `$${val.toLocaleString()}`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#333' }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard title="Valor del Inventario" value={stats.inversionTotalInventario} icon={<Inventory fontSize="large" />} color={theme.palette.info.main} subtitle="Dinero invertido en stock actual" />
-        </Grid>
-      </Grid>
-
-      <Box sx={{ mb: 3 }}>
-        <Paper elevation={1} sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: theme.palette.mode === 'dark' ? 'rgba(2, 136, 209, 0.1)' : '#e3f2fd', borderLeft: `4px solid ${theme.palette.info.main}` }}>
-          <Box display="flex" alignItems="center" gap={2}>
-            <CalendarMonth color="info" />
-            <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Corte Jornada: {format(new Date(), "dd 'de' MMMM", { locale: es })}</Typography>
-          </Box>
-          <Chip label={`Ventas de Hoy: $${stats.ventasHoy.toFixed(2)}`} color="info" sx={{ fontWeight: 'bold', fontSize: '1rem' }} />
-        </Paper>
-      </Box>
-
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} md={7}>
-          <Paper elevation={3} sx={{ p: 3, height: '400px', display:'flex', flexDirection:'column' }}>
-            <Typography variant="h6" gutterBottom color="text.secondary">Flujo Diario de Caja y Costos (Últimos 7 días)</Typography>
-            <Divider sx={{ mb: 2 }} />
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" />
-                <YAxis />
-                <Tooltip formatter={(value) => `$${value.toFixed(2)}`} contentStyle={{ backgroundColor: '#fff', borderRadius: 8 }} />
-                <Legend />
-                <Bar dataKey="ventas" name="Ventas ($)" fill="#4caf50" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="costo" name="Costo Bebida/Comida" fill="#ff9800" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
-
         <Grid item xs={12} md={5}>
-          <Paper elevation={3} sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" gutterBottom color="text.secondary">¿Qué se vende más en el Bar?</Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Box flexGrow={1} sx={{ height: 200 }}>
-              {stats.pieCategoriasData.length === 0 ? (
-                <Box display="flex" justifyContent="center" alignItems="center" height="100%"><Typography color="text.secondary">Sin registros de ventas en este periodo</Typography></Box>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={stats.pieCategoriasData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({percent}) => `${(percent * 100).toFixed(0)}%`}>
-                      {stats.pieCategoriasData.map((entry, index) => (<Cell key={`cell-bar-cat-${index}`} fill={entry.color} />))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </Box>
-            
-            <Box display="flex" justifyContent="space-around" mt={1} bgcolor="action.hover" p={1.5} borderRadius={2}>
-              <Box textAlign="center"><LocalBar sx={{ color: '#ffb300' }} /><Typography variant="caption" display="block">Cervezas</Typography><Typography variant="body2" fontWeight="bold">${stats.pieCategoriasData.find(c => c.name === 'Cervezas')?.value.toLocaleString('en-US', {maximumFractionDigits:0}) || 0}</Typography></Box>
-              <Box textAlign="center"><WineBar sx={{ color: '#8e24aa' }} /><Typography variant="caption" display="block">Licores</Typography><Typography variant="body2" fontWeight="bold">${stats.pieCategoriasData.find(c => c.name === 'Licores / Copas')?.value.toLocaleString('en-US', {maximumFractionDigits:0}) || 0}</Typography></Box>
-              <Box textAlign="center"><Restaurant sx={{ color: '#f4511e' }} /><Typography variant="caption" display="block">Botanas</Typography><Typography variant="body2" fontWeight="bold">${stats.pieCategoriasData.find(c => c.name === 'Botanas / Cocina')?.value.toLocaleString('en-US', {maximumFractionDigits:0}) || 0}</Typography></Box>
-            </Box>
-          </Paper>
+          <Card sx={{ ...cardStyle, height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" fontWeight="bold" color="#333">Productos más vendidos</Typography>
+                <FormControl size="small">
+                  <Select value="hoy" sx={{ borderRadius: '8px', height: 32, fontSize: '0.875rem' }}>
+                    <MenuItem value="hoy">Hoy</MenuItem>
+                    <MenuItem value="mes">Mes</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {topProducts.map((prod, index) => (
+                  <Box key={prod.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {/* Medalla Simple */}
+                      <Avatar sx={{ width: 24, height: 24, bgcolor: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#4CAF50', fontSize: 12, fontWeight: 'bold' }}>
+                        {index + 1}
+                      </Avatar>
+                      <Avatar src={prod.image} variant="rounded" sx={{ width: 40, height: 40 }} />
+                      <Typography variant="subtitle2" fontWeight="bold" color="#333">{prod.name}</Typography>
+                    </Box>
+                    <Box textAlign="right">
+                      <Typography variant="subtitle2" fontWeight="bold" color="#333">{prod.orders}</Typography>
+                      <Typography variant="caption" color="text.secondary">órdenes</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#d32f2f' }}><WarningAmberRounded fontSize="large" />{"¿Efectuar corte y reinicio de Turno?"}</DialogTitle>
-        <DialogContent><DialogContentText>Esto archivará/eliminará las ventas actuales para arrancar una nueva jornada en <b>$0.00</b>. Asegúrate de haber impreso tus reportes.</DialogContentText></DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseDialog} color="primary" variant="outlined">Cancelar</Button>
-          <Button onClick={handleConfirmReset} color="error" variant="contained" disabled={loadingReset} startIcon={loadingReset ? <CircularProgress size={20} color="inherit"/> : <DeleteForever />}>
-            {loadingReset ? "Limpiando..." : "Sí, Reiniciar Caja"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* 4. BOTTOM ROW: TABLES & ACTIONS */}
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ ...cardStyle, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ pb: 0 }}>
+              <Typography variant="h6" fontWeight="bold" color="#333" mb={2}>Últimas órdenes</Typography>
+            </CardContent>
+            <TableContainer sx={{ flexGrow: 1 }}>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: '#F9F9F9' }}>
+                  <TableRow>
+                    <TableCell sx={{ color: '#666', fontWeight: 'bold', borderBottom: 'none' }}>Hora</TableCell>
+                    <TableCell sx={{ color: '#666', fontWeight: 'bold', borderBottom: 'none' }}>Mesa</TableCell>
+                    <TableCell sx={{ color: '#666', fontWeight: 'bold', borderBottom: 'none' }}>Tipo</TableCell>
+                    <TableCell sx={{ color: '#666', fontWeight: 'bold', borderBottom: 'none' }}>Descripción</TableCell>
+                    <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', borderBottom: 'none' }}>Total</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {recentOrders.map((row, index) => (
+                    <TableRow key={index} sx={{ '& td': { borderBottom: '1px solid #F0F0F0' } }}>
+                      <TableCell sx={{ color: '#555' }}>{row.time}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: '#333' }}>{row.table}</TableCell>
+                      <TableCell>
+                        <Chip label={row.type} size="small" sx={{ bgcolor: row.typeColor, color: '#fff', fontWeight: 'bold', borderRadius: '4px', height: 20, fontSize: '0.7rem' }} />
+                      </TableCell>
+                      <TableCell sx={{ color: '#555' }}>{row.desc}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', color: '#333' }}>{row.total}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Card>
+        </Grid>
 
-      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }} variant="filled">{snackbar.message}</Alert>
-      </Snackbar>
-    </Container>
-  );
-}
+        <Grid item xs={12} md={6} lg={3}>
+          <Card sx={{ ...cardStyle, height: '100%', position: 'relative', overflow: 'hidden' }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight="bold" color="#333" mb={3}>Estado del restaurante</Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <TableRestaurant sx={{ color: '#4CAF50' }} />
+                    <Typography variant="body1" color="#555" fontWeight="medium">Mesas ocupadas</Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight="bold" color="#4CAF50">12</Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <TableRestaurant sx={{ color: '#FF9800' }} />
+                    <Typography variant="body1" color="#555" fontWeight="medium">Mesas libres</Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight="bold" color="#FF9800">8</Typography>
+                </Box>
 
-function KPICard({ title, value, icon, color, subtitle }) {
-  return (
-    <Card elevation={2} sx={{ height: '100%', borderLeft: `5px solid ${color}` }}>
-      <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box>
-            <Typography color="text.secondary" gutterBottom variant="overline" fontWeight="bold">{title}</Typography>
-            <Typography variant="h4" component="div" fontWeight="800" sx={{ color: 'text.primary' }}>
-              ${value?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{subtitle}</Typography>
-          </Box>
-          <Box sx={{ bgcolor: `${color}20`, p: 1.5, borderRadius: '50%', color: color, display: 'flex' }}>{icon}</Box>
-        </Box>
-      </CardContent>
-    </Card>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Groups sx={{ color: '#795548' }} />
+                    <Typography variant="body1" color="#555" fontWeight="medium">Clientes hoy</Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight="bold" color="#795548">53</Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ 
+                position: 'absolute', bottom: -20, right: -20, opacity: 0.1, 
+                transform: 'rotate(-10deg)', pointerEvents: 'none' 
+              }}>
+                <TableRestaurant sx={{ fontSize: 150 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6} lg={3}>
+          <Card sx={{ ...cardStyle, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight="bold" color="#333" mb={2}>Acciones rápidas</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {quickActions.map((action, idx) => (
+                  <Button 
+                    key={idx}
+                    fullWidth
+                    variant="contained"
+                    startIcon={action.icon}
+                    sx={{ 
+                      bgcolor: action.bg, color: action.color, justifyContent: 'flex-start',
+                      boxShadow: 'none', borderRadius: '8px', fontWeight: 'bold', py: 1,
+                      textTransform: 'none', '&:hover': { bgcolor: action.bg, filter: 'brightness(0.95)', boxShadow: 'none' }
+                    }}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+    </Box>
   );
 }

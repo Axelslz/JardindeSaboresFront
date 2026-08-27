@@ -114,7 +114,6 @@ const UsuariosTab = () => {
 };
 
 
-
 const Settings = () => {
   const { user } = useAuth();
   const [tabIndex, setTabIndex] = useState(0);

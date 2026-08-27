@@ -1,32 +1,19 @@
 import React, { useState } from 'react';
 import { 
   Box, Typography, Card, CardContent, CardMedia, Button, 
-  IconButton, Divider, Chip, TextField, InputAdornment, Breadcrumbs, Link
+  IconButton, TextField, InputAdornment, Breadcrumbs, Link, useTheme
 } from '@mui/material';
 import { 
-  Search as SearchIcon,
-  Tune as TuneIcon,
-  Add as AddIcon,
-  Remove as RemoveIcon,
-  DeleteOutline as DeleteIcon,
-  InfoOutlined as InfoIcon,
-  ArrowForward as ArrowForwardIcon,
-  Close as CloseIcon,
-  TableRestaurant as TableIcon,
-  ReceiptLong as ReceiptIcon,
-  Check as CheckIcon,
-  LocalCafe as CafeIcon
+  Search as SearchIcon, Add as AddIcon, 
+  Remove as RemoveIcon, DeleteOutline as DeleteIcon, 
+  ArrowBack as ArrowBackIcon, Close as CloseIcon, 
+  TableRestaurant as TableIcon, ReceiptLong as ReceiptIcon, 
+  Check as CheckIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 
 const activeGreen = '#4A7c59';
-const bgLight = '#FFFFFF';
-const cardBg = '#FAF7F2';
-const textDark = '#333333';
-
-// Datos de prueba (Mock Data) basados en la imagen
-const categorias = ['Todos', 'Huevos', 'Chilaquiles', 'Hot Cakes', 'Omelette', 'Bebidas', 'Extras'];
 
 const menuItems = [
   { id: 1, name: 'Chilaquiles Verdes', desc: 'Con pollo, crema, cebolla y queso fresco', price: 135, image: 'https://images.unsplash.com/photo-1626844131082-256783844137?q=80&w=400&auto=format&fit=crop', category: 'Chilaquiles' },
@@ -42,18 +29,16 @@ const menuItems = [
 const MenuCarta = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeCategory, setActiveCategory] = useState('Todos');
-  const [orderItems, setOrderItems] = useState([
-    { ...menuItems[0], quantity: 1 }, 
-    { id: 99, name: 'Café Americano', price: 35, quantity: 1, image: 'https://images.unsplash.com/photo-1559525839-b184a4d698c7?q=80&w=400&auto=format&fit=crop' }
-  ]);
-
-  // Recuperar la mesa seleccionada desde la navegación previa, o usar un default
-  const tableObj = location.state?.table || { id: 8, name: 'Mesa 8', capacity: '4-6 personas' };
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  
+  const tableObj = location.state?.table || { id: 1, name: 'Mesa 1', capacity: '2-4 personas' };
+  const savedOrders = JSON.parse(sessionStorage.getItem('pos_orders') || '{}');
+  const initialCart = savedOrders[tableObj.id]?.cartaItems || [];
+  
+  const [orderItems, setOrderItems] = useState(initialCart);
 
   const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.16;
-  const total = subtotal + tax;
 
   const handleAddItem = (item) => {
     const existing = orderItems.find(i => i.id === item.id);
@@ -78,101 +63,67 @@ const MenuCarta = () => {
     setOrderItems(orderItems.filter(item => item.id !== id));
   };
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: bgLight, overflow: 'hidden' }}>
-      
-      {/* HEADER */}
-      <TopHeader 
-        title="Desayunos a la Carta" 
-        subtitle="Selecciona tus platillos favoritos" 
-      />
+  const handleGuardarYRegresar = () => {
+    const currentOrders = JSON.parse(sessionStorage.getItem('pos_orders') || '{}');
+    const tableOrder = currentOrders[tableObj.id] || { buffetCounts: { adulto: 0, nino: 0 } };
+    
+    tableOrder.cartaItems = orderItems;
+    currentOrders[tableObj.id] = tableOrder;
+    sessionStorage.setItem('pos_orders', JSON.stringify(currentOrders));
 
-      {/* CONTENEDOR PRINCIPAL */}
+    const savedMesas = JSON.parse(sessionStorage.getItem('pos_mesas') || '[]');
+    const updatedMesas = savedMesas.map(m => m.id === tableObj.id ? { ...m, status: 'ocupada' } : m);
+    sessionStorage.setItem('pos_mesas', JSON.stringify(updatedMesas));
+
+    navigate('/pos'); 
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: theme.palette.background.default, overflow: 'hidden' }}>
+      <TopHeader title="Desayunos a la Carta" subtitle="Selecciona tus platillos favoritos" />
+
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, overflow: 'hidden' }}>
-        
-        {/* SECCIÓN IZQUIERDA: MENÚ */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 2, lg: 3 }, overflowY: 'auto' }}>
           
-          {/* Breadcrumbs */}
-          <Breadcrumbs separator="›" aria-label="breadcrumb" sx={{ mb: 2, fontSize: '0.875rem' }}>
+          <Breadcrumbs separator="›" sx={{ mb: 2, fontSize: '0.875rem' }}>
             <Link underline="hover" color="inherit" onClick={() => navigate('/pos')} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              <ReceiptIcon sx={{ mr: 0.5, fontSize: 18 }} /> Nueva Orden
+              <ReceiptIcon sx={{ mr: 0.5, fontSize: 18 }} /> Regresar a POS
             </Link>
             <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-              <CheckIcon sx={{ mr: 0.5, fontSize: 18, color: activeGreen }} /> Desayunos a la Carta
+              <CheckIcon sx={{ mr: 0.5, fontSize: 18, color: activeGreen }} /> Platillos
             </Typography>
           </Breadcrumbs>
 
-          {/* Título y Buscador */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
             <Box>
-              <Typography variant="h5" fontWeight="bold" color={textDark}>Selecciona tus platillos</Typography>
-              <Typography variant="body2" color="text.secondary">Elige de nuestro menú a la carta</Typography>
+              <Typography variant="h5" fontWeight="bold" color="text.primary">Selecciona tus platillos</Typography>
+              <Typography variant="body2" color="text.secondary">Agrega extras para la {tableObj.name}</Typography>
             </Box>
             
             <Box sx={{ display: 'flex', gap: 1 }}>
               <TextField 
-                placeholder="Buscar platillo..."
-                size="small"
-                sx={{ bgcolor: '#fff', '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
-                }}
+                placeholder="Buscar platillo..." size="small"
+                sx={{ bgcolor: theme.palette.background.paper, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment> }}
               />
-              <Button 
-                variant="outlined" 
-                startIcon={<TuneIcon />}
-                sx={{ borderRadius: '8px', color: textDark, borderColor: '#ccc', textTransform: 'none' }}
-              >
-                Categorías
-              </Button>
             </Box>
           </Box>
 
-          {/* Filtros de Categorías */}
-          <Box sx={{ display: 'flex', gap: 1, mb: 3, overflowX: 'auto', pb: 1, '&::-webkit-scrollbar': { height: 4 } }}>
-            {categorias.map(cat => (
-              <Chip 
-                key={cat}
-                label={cat}
-                onClick={() => setActiveCategory(cat)}
-                sx={{ 
-                  bgcolor: activeCategory === cat ? activeGreen : '#F5F5F5',
-                  color: activeCategory === cat ? '#fff' : textDark,
-                  fontWeight: activeCategory === cat ? 'bold' : 'normal',
-                  '&:hover': { bgcolor: activeCategory === cat ? activeGreen : '#E0E0E0' },
-                  borderRadius: '8px',
-                  px: 1
-                }}
-              />
-            ))}
-          </Box>
-
-          {/* Grid de Platillos */}
-          <Box sx={{ 
-            display: 'grid', 
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(4, 1fr)' }, 
-            gap: 2, mb: 3 
-          }}>
-            {menuItems.filter(i => activeCategory === 'Todos' || i.category === activeCategory).map((item) => (
-              <Card key={item.id} elevation={0} sx={{ border: '1px solid #E0E0E0', borderRadius: '12px', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+            {menuItems.map((item) => (
+              <Card key={item.id} elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '12px', display: 'flex', flexDirection: 'column', bgcolor: theme.palette.background.paper }}>
                 <CardMedia component="img" height="140" image={item.image} alt={item.name} />
                 <CardContent sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle2" fontWeight="bold" lineHeight={1.2} mb={0.5}>{item.name}</Typography>
+                  <Typography variant="subtitle2" fontWeight="bold" lineHeight={1.2} mb={0.5} color="text.primary">{item.name}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {item.desc}
                   </Typography>
                   <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" fontWeight="bold" color={textDark}>${item.price.toFixed(2)}</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="text.primary">${item.price.toFixed(2)}</Typography>
                     <Button 
-                      variant="outlined" 
-                      size="small" 
-                      endIcon={<AddIcon fontSize="small" />}
+                      variant="outlined" size="small" endIcon={<AddIcon fontSize="small" />}
                       onClick={() => handleAddItem(item)}
-                      sx={{ 
-                        borderRadius: '20px', textTransform: 'none', color: activeGreen, borderColor: activeGreen,
-                        '&:hover': { bgcolor: '#f0f7f2' }
-                      }}
+                      sx={{ borderRadius: '20px', textTransform: 'none', color: activeGreen, borderColor: activeGreen, '&:hover': { bgcolor: isDark ? 'rgba(74, 124, 89, 0.1)' : '#f0f7f2' } }}
                     >
                       Añadir
                     </Button>
@@ -181,116 +132,64 @@ const MenuCarta = () => {
               </Card>
             ))}
           </Box>
-
-          {/* Banner de Información */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: cardBg, p: 2, borderRadius: '12px', mt: 'auto' }}>
-            <InfoIcon sx={{ color: '#8d7b68' }} />
-            <Box>
-              <Typography variant="subtitle2" fontWeight="bold" color="#5a4c3e">Información</Typography>
-              <Typography variant="caption" color="text.secondary">Todos nuestros platillos incluyen tortillas y salsa.</Typography>
-            </Box>
-          </Box>
         </Box>
 
-        {/* SECCIÓN DERECHA: RESUMEN DE ORDEN */}
-        <Box sx={{ width: { xs: '100%', lg: '340px' }, flexShrink: 0, borderLeft: { lg: '1px solid #E0E0E0' }, bgcolor: '#fff', p: 3, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <Box sx={{ width: { xs: '100%', lg: '340px' }, flexShrink: 0, borderLeft: { lg: `1px solid ${theme.palette.divider}` }, bgcolor: theme.palette.background.paper, p: 3, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           
-          <Typography variant="h6" fontWeight="bold" color={textDark} sx={{ mb: 3 }}>
-            Resumen de la orden
-          </Typography>
+          <Typography variant="h6" fontWeight="bold" color="text.primary" sx={{ mb: 3 }}>Platillos agregados</Typography>
 
-          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>Mesa seleccionada</Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <TableIcon sx={{ color: activeGreen, fontSize: 28 }} />
               <Box>
                 <Typography variant="subtitle1" fontWeight="bold" color={activeGreen} lineHeight={1.1}>{tableObj.name}</Typography>
-                <Typography variant="caption" color="text.secondary">{tableObj.capacity}</Typography>
               </Box>
             </Box>
-            <Button variant="outlined" size="small" sx={{ borderRadius: '8px', textTransform: 'none', color: '#555', borderColor: '#ccc' }} onClick={() => navigate('/pos')}>
-              Cambiar mesa
-            </Button>
           </Box>
 
-          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>Tipo de servicio</Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#e8f3ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: activeGreen }}>
-                <ReceiptIcon fontSize="small" />
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" fontWeight="bold" color={textDark}>Desayunos a la Carta</Typography>
-                <Typography variant="caption" color="text.secondary">Menú individual</Typography>
-              </Box>
-            </Box>
-            <Button variant="outlined" size="small" sx={{ borderRadius: '8px', textTransform: 'none', color: '#555', borderColor: '#ccc' }} onClick={() => navigate('/pos')}>
-              Cambiar
-            </Button>
-          </Box>
-
-          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>Platillos seleccionados ({orderItems.length})</Typography>
-          
-          {/* Lista de Items */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3, flexGrow: 1 }}>
-            {orderItems.map(item => (
-              <Box key={item.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                <Box component="img" src={item.image} sx={{ width: 48, height: 48, borderRadius: '8px', objectFit: 'cover' }} />
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" lineHeight={1.2} mb={0.5}>{item.name}</Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid #E0E0E0', borderRadius: '4px' }}>
-                      <IconButton size="small" onClick={() => updateQuantity(item.id, -1)} sx={{ p: 0.2 }}><RemoveIcon fontSize="small" /></IconButton>
-                      <Typography variant="body2" sx={{ px: 1, minWidth: 20, textAlign: 'center' }}>{item.quantity}</Typography>
-                      <IconButton size="small" onClick={() => updateQuantity(item.id, 1)} sx={{ p: 0.2 }}><AddIcon fontSize="small" /></IconButton>
+            {orderItems.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" textAlign="center" mt={4}>No has agregado platillos extra.</Typography>
+            ) : (
+              orderItems.map(item => (
+                <Box key={item.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <Box component="img" src={item.image} sx={{ width: 48, height: 48, borderRadius: '8px', objectFit: 'cover' }} />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="bold" lineHeight={1.2} mb={0.5} color="text.primary">{item.name}</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', border: `1px solid ${theme.palette.divider}`, borderRadius: '4px' }}>
+                        <IconButton size="small" onClick={() => updateQuantity(item.id, -1)} sx={{ p: 0.2, color: 'text.primary' }}><RemoveIcon fontSize="small" /></IconButton>
+                        <Typography variant="body2" sx={{ px: 1, minWidth: 20, textAlign: 'center', color: 'text.primary' }}>{item.quantity}</Typography>
+                        <IconButton size="small" onClick={() => updateQuantity(item.id, 1)} sx={{ p: 0.2, color: 'text.primary' }}><AddIcon fontSize="small" /></IconButton>
+                      </Box>
+                      <Typography variant="subtitle2" fontWeight="bold" color="text.primary">${(item.price * item.quantity).toFixed(2)}</Typography>
+                      <IconButton size="small" onClick={() => removeItem(item.id)} sx={{ color: 'error.main', p: 0.5 }}><DeleteIcon fontSize="small" /></IconButton>
                     </Box>
-
-                    <Typography variant="subtitle2" fontWeight="bold">${(item.price * item.quantity).toFixed(2)}</Typography>
-                    <IconButton size="small" onClick={() => removeItem(item.id)} sx={{ color: '#999', p: 0.5 }}><DeleteIcon fontSize="small" /></IconButton>
                   </Box>
                 </Box>
-              </Box>
-            ))}
+              ))
+            )}
           </Box>
 
-          {/* Totales */}
           <Box sx={{ mt: 'auto' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="body2" color="text.secondary">Subtotal</Typography>
-              <Typography variant="body2" fontWeight="bold" color={textDark}>${subtotal.toFixed(2)}</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">Impuestos (16%)</Typography>
-              <Typography variant="body2" fontWeight="bold" color={textDark}>${tax.toFixed(2)}</Typography>
-            </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-              <Typography variant="subtitle1" fontWeight="bold" color={textDark}>Total</Typography>
-              <Typography variant="h6" fontWeight="bold" color={activeGreen}>${total.toFixed(2)}</Typography>
-            </Box>
-
-            <Box sx={{ bgcolor: cardBg, p: 2, borderRadius: '12px', mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <CafeIcon sx={{ color: '#8d7b68', fontSize: 18 }} />
-                <Typography variant="subtitle2" fontWeight="bold" color="#5a4c3e">Incluye:</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CheckIcon sx={{ color: activeGreen, fontSize: 16 }} />
-                <Typography variant="caption" color="text.secondary">Café americano de cortesía</Typography>
-              </Box>
+              <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Subtotal Carta</Typography>
+              <Typography variant="h6" fontWeight="bold" color={activeGreen}>${subtotal.toFixed(2)}</Typography>
             </Box>
 
             <Button 
-              fullWidth variant="contained" endIcon={<ArrowForwardIcon />}
+              fullWidth variant="contained" startIcon={<ArrowBackIcon />}
+              onClick={handleGuardarYRegresar}
               sx={{ bgcolor: activeGreen, textTransform: 'none', borderRadius: '8px', fontWeight: 'bold', py: 1.5, mb: 1, '&:hover': { bgcolor: '#386144' } }}
             >
-              Continuar a pedido
+              Guardar y regresar al POS
             </Button>
             <Button 
               fullWidth variant="outlined" startIcon={<CloseIcon />}
-              sx={{ color: '#666', borderColor: '#D0D0D0', textTransform: 'none', borderRadius: '8px', fontWeight: 'bold', py: 1, '&:hover': { bgcolor: '#F5F5F5', borderColor: '#999' } }}
+              onClick={() => navigate('/pos')} 
+              sx={{ color: 'text.secondary', borderColor: theme.palette.divider, textTransform: 'none', borderRadius: '8px', fontWeight: 'bold', py: 1, '&:hover': { bgcolor: theme.palette.action.hover, borderColor: 'text.primary' } }}
             >
-              Cancelar orden
+              Descartar cambios
             </Button>
           </Box>
         </Box>

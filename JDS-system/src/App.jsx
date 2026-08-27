@@ -5,11 +5,12 @@ import { AuthProvider } from './context/AuthContext';
 import { InventoryProvider } from './context/InventoryContext';
 import { MaintenanceProvider } from './context/MaintenanceContext'; 
 import Navbar from './components/Navbar';
+import SalesHistory from './components/SalesHistory';
 import ProtectedRoute from './routes/ProtectedRoute';
 import RoleRoute from './routes/RoleRoute'; 
 import Login from './pages/Login';
 import POS from './pages/POS';
-import MenuCarta from './pages/MenuCarta'; // <-- IMPORTAMOS EL NUEVO MENÚ
+import MenuCarta from './pages/MenuCarta';
 import Inventory from './pages/Inventory';
 import Dashboard from './pages/Dashboard';
 import Maintenance from './pages/Maintenance';
@@ -27,14 +28,13 @@ function App() {
             <Router>
               <Box sx={{ display: 'flex', flexDirection: 'row', height: '100vh', width: '100vw', overflow: 'hidden' }}>
                 <Navbar /> 
-                <Box component="main" sx={{ flexGrow: 1, height: '100%', overflowY: 'auto', backgroundColor: '#F9F9F9' }}>
+                {/* AQUI ESTÁ EL CAMBIO: bgcolor: 'background.default' y color: 'text.primary' */}
+                <Box component="main" sx={{ flexGrow: 1, height: '100%', overflowY: 'auto', bgcolor: 'background.default', color: 'text.primary' }}>
                   <Routes>
                     <Route path="/login" element={<Login />} />
-                    <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+                    <Route path="/history" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
                     <Route path="/pos" element={<ProtectedRoute><POS/></ProtectedRoute>} />
-                    {/* AGREGAMOS LA NUEVA RUTA AQUÍ */}
-                    <Route path="/pos/menu" element={<ProtectedRoute><MenuCarta /></ProtectedRoute>} />
-                    
+                    <Route path="/pos/menu" element={<ProtectedRoute><MenuCarta /></ProtectedRoute>} /> 
                     <Route path="/cotizacion" element={<ProtectedRoute><Cotizacion /></ProtectedRoute>} />
                     <Route path="/" element={<ProtectedRoute><RoleRoute allowedRoles={['admin']}><Dashboard/></RoleRoute></ProtectedRoute>} />
                     <Route path="/maintenance" element={<ProtectedRoute><RoleRoute allowedRoles={['admin']}><Maintenance /></RoleRoute></ProtectedRoute>} />
@@ -43,7 +43,7 @@ function App() {
                     <Route path="/expenses/warehouse" element={<ProtectedRoute><RoleRoute allowedRoles={['admin']}><Expenses type="warehouse" /></RoleRoute></ProtectedRoute>} />
                     <Route path="/expenses/payroll" element={<ProtectedRoute><RoleRoute allowedRoles={['admin']}><Expenses type="payroll" /></RoleRoute></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><RoleRoute allowedRoles={['admin']}><Box sx={{ height: '100%', overflowY: 'auto' }}><Settings /></Box></RoleRoute></ProtectedRoute>} />
-                    <Route path="*" element={<Navigate to="/inventory" replace />} />
+                    <Route path="*" element={<Navigate to="/pos" replace />} />
                   </Routes>
                 </Box>
               </Box>
